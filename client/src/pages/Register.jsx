@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { registerRequest } from "../api";
 
 /* ─────────────────────────────────────────────
-    Register.jsx  –  MeetUp App  (Premium glass · revamped)
+    Register.jsx  –  MeetUp App  (הרשמה מול Backend אמיתי)
 ───────────────────────────────────────────── */
 
 export default function Register() {
@@ -38,20 +39,24 @@ export default function Register() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
+    setErrors({});
 
-    const newUser = {
-      fullName: formData.fullName,
-      email: formData.email,
-      password: formData.password
-    };
-    localStorage.setItem("registeredUser", JSON.stringify(newUser));
+    try {
+      // קריאה אמיתית ל-Backend. הסיסמה תוצפן בצד השרת (bcrypt).
+      // שולחים name (ולא fullName) כדי שהמודל יישמר אחיד וה-UI יציג user.name.
+      await registerRequest({
+        name: formData.fullName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
 
-    console.log("User registered and saved to LocalStorage:", newUser);
-    setLoading(false);
-    setSuccess(true);
-
-    setTimeout(() => navigate("/login"), 1800);
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      setErrors({ global: err.message });
+    } finally {
+      setLoading(false);
+    }
   }
 
   function strength(p) {
@@ -89,9 +94,9 @@ export default function Register() {
               🎉 נרשמת בהצלחה! מעביר אותך...
             </div>
           )}
-          {Object.keys(errors).length > 0 && !success && (
+          {(errors.global || Object.keys(errors).length > 0) && !success && (
             <div className="auth-toast error" role="alert" aria-live="assertive">
-              ⚠️ אנא תקן את השגיאות המסומנות
+              {errors.global ? `⚠️ ${errors.global}` : "⚠️ אנא תקן את השגיאות המסומנות"}
             </div>
           )}
 
@@ -110,6 +115,7 @@ export default function Register() {
                 placeholder="ישראל ישראלי"
                 autoComplete="name"
                 aria-invalid={!!errors.fullName}
+                disabled={loading}
               />
               {errors.fullName && <span className="field-error">{errors.fullName}</span>}
             </div>
@@ -127,6 +133,7 @@ export default function Register() {
                 placeholder="your@email.com"
                 autoComplete="email"
                 aria-invalid={!!errors.email}
+                disabled={loading}
                 dir="ltr"
               />
               {errors.email && <span className="field-error">{errors.email}</span>}
@@ -146,6 +153,7 @@ export default function Register() {
                   placeholder="לפחות 6 תווים"
                   autoComplete="new-password"
                   aria-invalid={!!errors.password}
+                  disabled={loading}
                   dir="ltr"
                 />
                 <button type="button" className="eye-btn" onClick={() => setShowPass(v => !v)}
@@ -185,6 +193,7 @@ export default function Register() {
                   placeholder="הזן שוב את הסיסמה"
                   autoComplete="new-password"
                   aria-invalid={!!errors.confirm}
+                  disabled={loading}
                   dir="ltr"
                 />
                 <button type="button" className="eye-btn" onClick={() => setShowConf(v => !v)}

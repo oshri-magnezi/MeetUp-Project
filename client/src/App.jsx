@@ -9,25 +9,21 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// ה-Context הגלובלי (ה-Provider עצמו עוטף את App בתוך main.jsx)
+import { useMeetups } from './context/MeetupContext';
 
 /* ─────────────────────────────────────────────
-   App.jsx — MeetUp shell
-   Premium light-glass navbar, harmonized with the pages.
-   All routing logic preserved 1:1.
+   Navbar Component — דינמי לפי מצב ההתחברות
 ───────────────────────────────────────────── */
-
-const NAV_LINKS = [
-  { to: '/', label: 'דף הבית', emoji: '🏠', end: true },
-  { to: '/dashboard', label: 'לוח בקרה', emoji: '📊' },
-  { to: '/login', label: 'התחברות', emoji: '🔑' },
-  { to: '/register', label: 'הרשמה', emoji: '📝' },
-];
-
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Subtle elevation once the user scrolls past the hero — a quiet premium cue.
+  // שליפת המשתמש ופונקציית ההתנתקות מה-Context
+  const { user, logout } = useMeetups();
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -35,7 +31,6 @@ function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Lock body scroll while the mobile panel is open.
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
     return () => {
@@ -44,6 +39,23 @@ function Navbar() {
   }, [menuOpen]);
 
   const closeMenu = () => setMenuOpen(false);
+
+  // בניית תפריט הניווט בצורה דינמית לפי מצב החיבור
+  const getNavLinks = () => {
+    const links = [{ to: '/', label: 'דף הבית', emoji: '🏠', end: true }];
+
+    if (user) {
+      links.push({ to: '/dashboard', label: 'לוח בקרה', emoji: '📊' });
+    } else {
+      links.push(
+        { to: '/login', label: 'התחברות', emoji: '🔑' },
+        { to: '/register', label: 'הרשמה', emoji: '📝' }
+      );
+    }
+    return links;
+  };
+
+  const navLinks = getNavLinks();
 
   return (
     <header className={`mu-navbar ${scrolled ? 'is-scrolled' : ''}`} dir="rtl">
@@ -55,15 +67,13 @@ function Navbar() {
           onClick={closeMenu}
           aria-label="MeetUp — דף הבית"
         >
-          <span className="mu-brand__icon" aria-hidden="true">
-            ◈
-          </span>
+          <span className="mu-brand__icon" aria-hidden="true">◈</span>
           <span className="mu-brand__text">MeetUp</span>
         </NavLink>
 
         {/* Desktop links */}
         <nav className="mu-links" aria-label="ניווט ראשי">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
@@ -72,12 +82,18 @@ function Navbar() {
                 `mu-link ${isActive ? 'is-active' : ''}`
               }
             >
-              <span className="mu-link__emoji" aria-hidden="true">
-                {link.emoji}
-              </span>
+              <span className="mu-link__emoji" aria-hidden="true">{link.emoji}</span>
               <span>{link.label}</span>
             </NavLink>
           ))}
+
+          {/* כפתור התנתקות למשתמש מחובר (דסקטופ) */}
+          {user && (
+            <button onClick={() => { logout(); closeMenu(); }} className="mu-link mu-logout-btn">
+              <span className="mu-link__emoji" aria-hidden="true">🚪</span>
+              <span>התנתקות</span>
+            </button>
+          )}
         </nav>
 
         {/* Mobile toggle */}
@@ -102,7 +118,7 @@ function Navbar() {
         hidden={!menuOpen}
       >
         <nav className="mu-mobile__links" aria-label="ניווט נייד">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
@@ -112,12 +128,18 @@ function Navbar() {
                 `mu-mobile__link ${isActive ? 'is-active' : ''}`
               }
             >
-              <span className="mu-link__emoji" aria-hidden="true">
-                {link.emoji}
-              </span>
+              <span className="mu-link__emoji" aria-hidden="true">{link.emoji}</span>
               <span>{link.label}</span>
             </NavLink>
           ))}
+
+          {/* כפתור התנתקות למשתמש מחובר (מובייל) */}
+          {user && (
+            <button onClick={() => { logout(); closeMenu(); }} className="mu-mobile__link mu-logout-btn">
+              <span className="mu-link__emoji" aria-hidden="true">🚪</span>
+              <span>התנתקות</span>
+            </button>
+          )}
         </nav>
       </div>
 
@@ -133,19 +155,33 @@ function Navbar() {
 }
 
 function App() {
+  // משיכת המפגשים פעם אחת בעלייה — מקור נתונים יחיד ל-Home ו-Dashboard
+  const { fetchMeetups } = useMeetups();
+  useEffect(() => {
+    fetchMeetups();
+  }, [fetchMeetups]);
+
   return (
     <Router>
       <style>{NAV_CSS}</style>
 
       <Navbar />
 
-      {/* Main content region */}
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* הגנה על לוח הבקרה באמצעות ה-ProtectedRoute */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
     </Router>
@@ -155,12 +191,11 @@ function App() {
 export default App;
 
 /* ─────────────────────────────────────────────
-   Styles — light glassmorphism, synced to the pages
+   Styles — Navbar (ללא שינוי עיצובי)
 ───────────────────────────────────────────── */
 const NAV_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap');
 
-  /* ── Bar ───────────────────────────────── */
   .mu-navbar {
     position: sticky;
     top: 0;
@@ -190,7 +225,6 @@ const NAV_CSS = `
     gap: 16px;
   }
 
-  /* ── Brand ─────────────────────────────── */
   .mu-brand {
     display: inline-flex;
     align-items: center;
@@ -219,7 +253,6 @@ const NAV_CSS = `
     letter-spacing: -0.5px;
   }
 
-  /* ── Desktop links ─────────────────────── */
   .mu-links {
     display: flex;
     align-items: center;
@@ -236,6 +269,8 @@ const NAV_CSS = `
     padding: 9px 16px;
     border-radius: 100px;
     border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
     transition: color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
   }
   .mu-link__emoji { font-size: 16px; line-height: 1; }
@@ -259,7 +294,15 @@ const NAV_CSS = `
     box-shadow: 0 10px 24px rgba(124, 58, 237, 0.42);
   }
 
-  /* ── Burger ────────────────────────────── */
+  .mu-logout-btn {
+    border: none;
+    font-family: inherit;
+  }
+  .mu-logout-btn:hover {
+    color: #dc2626 !important;
+    background: rgba(220, 38, 38, 0.08) !important;
+  }
+
   .mu-burger {
     display: none;
     flex-direction: column;
@@ -287,7 +330,6 @@ const NAV_CSS = `
   .mu-burger.is-open span:nth-child(2) { opacity: 0; }
   .mu-burger.is-open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
-  /* ── Mobile panel ──────────────────────── */
   .mu-mobile {
     display: none;
     overflow: hidden;
@@ -314,6 +356,9 @@ const NAV_CSS = `
     padding: 14px 18px;
     border-radius: 16px;
     border: 1px solid transparent;
+    background: transparent;
+    text-align: right;
+    cursor: pointer;
     transition: background .2s ease, color .2s ease, box-shadow .2s ease;
   }
   .mu-mobile__link:hover { background: rgba(124, 58, 237, 0.07); color: #4f46e5; }
@@ -336,7 +381,6 @@ const NAV_CSS = `
     transition: opacity .25s ease;
   }
 
-  /* ── Content shell ─────────────────────── */
   .app-container {
     width: 100%;
     min-height: calc(100svh - 69px);
@@ -344,7 +388,6 @@ const NAV_CSS = `
     flex-direction: column;
   }
 
-  /* ── Responsive ────────────────────────── */
   @media (max-width: 768px) {
     .mu-links { display: none; }
     .mu-burger { display: flex; }
@@ -354,7 +397,6 @@ const NAV_CSS = `
     .mu-backdrop.is-open { opacity: 1; pointer-events: auto; }
   }
 
-  /* ── Dark scheme harmony (pages stay light; bar adapts subtly) ── */
   @media (prefers-color-scheme: dark) {
     .mu-navbar {
       background: rgba(22, 23, 29, 0.72);
@@ -367,12 +409,6 @@ const NAV_CSS = `
     .mu-burger span { background: #c084fc; }
     .mu-mobile { background: rgba(22, 23, 29, 0.96); border-top-color: rgba(192, 132, 252, 0.2); }
     .mu-mobile__link { color: #cbd5e1; }
-  }
-
-  /* ── Reduced motion ────────────────────── */
-  @media (prefers-reduced-motion: reduce) {
-    .mu-navbar, .mu-link, .mu-brand, .mu-burger span, .mu-mobile, .mu-backdrop {
-      transition: none !important;
-    }
+    .mu-logout-btn:hover { color: #ef4444 !important; background: rgba(239, 68, 68, 0.15) !important; }
   }
 `;

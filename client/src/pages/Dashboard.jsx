@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useMeetups } from "../context/MeetupContext";
 
 /* ─────────────────────────────────────────────
-    Dashboard.jsx – Premium Light Glassmorphism · revamped
+    Dashboard.jsx – Premium Light Glassmorphism · מחובר ל-Context
 ───────────────────────────────────────────── */
 
 const CATEGORIES = [
@@ -44,12 +44,22 @@ const FIELD_LABELS = {
   maxAttendees: "מגבלת משתתפים",
 };
 
-function formatDateTime(date, time) {
-  if (!date) return "";
-  const d = new Date(`${date}T${time || "00:00"}`);
+function formatDateTime(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+
+  const time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString("he-IL", {
     weekday: "short", day: "numeric", month: "long",
-  }) + (time ? ` · ${time}` : "");
+  }) + ` · ${time}`;
+}
+
+// מזהה הבעלים של מפגש — תומך במספר שמות שדה אפשריים מה-Backend
+function getOwnerId(m) {
+  const owner = m.createdBy ?? m.organizer ?? m.owner ?? m.user;
+  if (owner && typeof owner === "object") return owner._id || owner.id;
+  return owner;
 }
 
 function Field({ label, required, error, htmlFor, children }) {
@@ -66,12 +76,24 @@ function Field({ label, required, error, htmlFor, children }) {
 }
 
 export default function Dashboard() {
-  const { addMeetup } = useMeetups();
+  // הכל מגיע מה-Context: המשתמש, המפגשים, מצב הטעינה והפעולות
+  const { user, meetups, loading, error, createMeetup, deleteMeetup } = useMeetups();
 
-  const [form, setForm]           = useState(EMPTY_FORM);
-  const [errors, setErrors]       = useState({});
-  const [myMeetups, setMyMeetups] = useState([]);
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [errors, setErrors]     = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  // המפגשים שהמשתמש הנוכחי יצר. אם ה-Backend עדיין לא מחזיר שדה בעלים,
+  // מציגים את כל המפגשים כדי לא להישאר עם רשימה ריקה במהלך הפיתוח.
+  const myMeetups = useMemo(() => {
+    if (!user) return [];
+    const uid = user._id || user.id;
+    const hasOwnerInfo = meetups.some((m) => getOwnerId(m) != null);
+    if (!hasOwnerInfo) return meetups;
+    return meetups.filter((m) => String(getOwnerId(m)) === String(uid));
+  }, [meetups, user]);
 
   function validate(data) {
     const errs = {};
@@ -90,35 +112,48 @@ export default function Dashboard() {
     if (errors[name]) setErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+
     const errs = validate(form);
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
 
-    const newMeetup = {
-      id:          Date.now(),
-      title:       form.title.trim(),
-      description: form.description.trim(),
-      date:        `${form.date}T${form.time}`,
-      location:    form.location.trim(),
-      category:    form.category,
-      maxAttendees: Number(form.maxAttendees),
-      registered:  1,
-    };
+    setIsSubmitting(true);
+    setApiError("");
 
-    addMeetup(newMeetup);
-    setMyMeetups((prev) => [newMeetup, ...prev]);
-    setForm(EMPTY_FORM);
-    setErrors({});
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    try {
+      // יצירה דרך ה-Context — מעדכן את הסטייט הגלובלי (גם דף הבית יתעדכן)
+      await createMeetup({
+        title:        form.title.trim(),
+        description:  form.description.trim(),
+        date:         `${form.date}T${form.time}`,
+        location:     form.location.trim(),
+        category:     form.category,
+        maxAttendees: Number(form.maxAttendees),
+      });
+
+      setForm(EMPTY_FORM);
+      setErrors({});
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err) {
+      setApiError(err.message || "משהו השתבש בזמן פרסום המפגש לשרת.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
-  function handleDelete(id) {
-    setMyMeetups((prev) => prev.filter((m) => m.id !== id));
+  async function handleDelete(id) {
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק את המפגש הזה?")) return;
+    setApiError("");
+    try {
+      await deleteMeetup(id);
+    } catch (err) {
+      setApiError(err.message || "מחיקת המפגש נכשלה. נסה שנית.");
+    }
   }
 
   return (
@@ -127,11 +162,11 @@ export default function Dashboard() {
       <div className="home-bg" dir="rtl">
         <main className="home-page">
 
-          {/* Hero Header */}
+          {/* Hero Header — מותאם אישית לפי שם המשתמש מה-Context */}
           <header className="hero-card">
             <span className="hero-eyebrow">ניהול קהילה • שליטה מלאה</span>
             <h1 className="hero-title">
-              אזור הניהול <span>של המפגשים שלך</span>
+              אזור הניהול <span>של {user?.name || "המפגשים שלך"}</span>
             </h1>
             <p className="hero-sub">
               צור מפגשים קהילתיים חדשים, עקוב אחר כמות המשתתפים הרשומים ונהל את לוח הזמנים שלך בממשק אחד חכם ונקי.
@@ -154,6 +189,12 @@ export default function Dashboard() {
                 </div>
               )}
 
+              {apiError && (
+                <div className="field-error" style={{ marginBottom: "20px", display: "block" }}>
+                  ⚠ {apiError}
+                </div>
+              )}
+
               <form className="form-stack" onSubmit={handleSubmit} noValidate>
                 <Field label="שם המפגש" required error={errors.title} htmlFor="d-title">
                   <input
@@ -166,6 +207,7 @@ export default function Dashboard() {
                     placeholder="למשל: מרתון תכנות או אימון כושר"
                     maxLength={80}
                     aria-invalid={!!errors.title}
+                    disabled={isSubmitting}
                   />
                 </Field>
 
@@ -178,6 +220,7 @@ export default function Dashboard() {
                     onChange={handleChange}
                     placeholder="פרט בקצרה על הפעילות, מה הלו''ז ומה כדאי להביא..."
                     maxLength={300}
+                    disabled={isSubmitting}
                   />
                 </Field>
 
@@ -191,6 +234,7 @@ export default function Dashboard() {
                       value={form.date}
                       onChange={handleChange}
                       aria-invalid={!!errors.date}
+                      disabled={isSubmitting}
                     />
                   </Field>
                   <Field label="שעת התחלה" required error={errors.time} htmlFor="d-time">
@@ -202,6 +246,7 @@ export default function Dashboard() {
                       value={form.time}
                       onChange={handleChange}
                       aria-invalid={!!errors.time}
+                      disabled={isSubmitting}
                     />
                   </Field>
                 </div>
@@ -216,6 +261,7 @@ export default function Dashboard() {
                     onChange={handleChange}
                     placeholder="מיקום פיזי או קישור ל-Zoom"
                     aria-invalid={!!errors.location}
+                    disabled={isSubmitting}
                   />
                 </Field>
 
@@ -228,6 +274,7 @@ export default function Dashboard() {
                       value={form.category}
                       onChange={handleChange}
                       aria-invalid={!!errors.category}
+                      disabled={isSubmitting}
                     >
                       <option value="">בחר קטגוריה...</option>
                       {CATEGORIES.map((c) => (
@@ -247,12 +294,13 @@ export default function Dashboard() {
                       placeholder="למשל: 15"
                       min={2}
                       aria-invalid={!!errors.maxAttendees}
+                      disabled={isSubmitting}
                     />
                   </Field>
                 </div>
 
-                <button type="submit" className="submit-action-btn">
-                  פרסם מפגש חדש ←
+                <button type="submit" className="submit-action-btn" disabled={isSubmitting}>
+                  {isSubmitting ? "מפרסם מפגש..." : "פרסם מפגש חדש ←"}
                 </button>
               </form>
             </section>
@@ -267,7 +315,20 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {myMeetups.length === 0 ? (
+              {/* שגיאת טעינה כללית מה-Context */}
+              {error && !loading && (
+                <div className="field-error" style={{ marginBottom: "20px", display: "block" }}>
+                  ⚠ {error}
+                </div>
+              )}
+
+              {loading ? (
+                <div className="inner-empty-state">
+                  <div className="inner-empty-icon" aria-hidden="true">🔄</div>
+                  <h3>טוען מפגשים מהשרת...</h3>
+                  <p>אנא המתן בזמן שאנו מושכים נתונים מעודכנים.</p>
+                </div>
+              ) : myMeetups.length === 0 ? (
                 <div className="inner-empty-state">
                   <div className="inner-empty-icon" aria-hidden="true">📅</div>
                   <h3>אין לך מפגשים ברשימה</h3>
@@ -277,10 +338,12 @@ export default function Dashboard() {
                 <div className="feed-stack">
                   {myMeetups.map((m) => {
                     const colors = getCategoryColors(m.category);
-                    const fillPct = Math.min((m.registered / m.maxAttendees) * 100, 100);
+                    const registeredCount = m.registered || (m.attendees ? m.attendees.length : 1);
+                    const fillPct = Math.min((registeredCount / m.maxAttendees) * 100, 100);
+                    const meetupId = m._id || m.id;
 
                     return (
-                      <div key={m.id} className="interactive-row-card">
+                      <div key={meetupId} className="interactive-row-card">
                         <div className="row-main-content">
 
                           <div className="row-header-line">
@@ -293,7 +356,7 @@ export default function Dashboard() {
 
                           <div className="row-meta-container">
                             <div className="row-meta-item">
-                              <span aria-hidden="true">📅</span> {formatDateTime(m.date?.split("T")[0], m.date?.split("T")[1]?.slice(0,5))}
+                              <span aria-hidden="true">📅</span> {formatDateTime(m.date)}
                             </div>
                             {m.location && (
                               <div className="row-meta-item">
@@ -304,7 +367,7 @@ export default function Dashboard() {
 
                           <div className="row-progress-wrapper">
                             <div className="row-progress-label">
-                              <span>רשומים: <strong>{m.registered}</strong> מתוך {m.maxAttendees}</span>
+                              <span>רשומים: <strong>{registeredCount}</strong> מתוך {m.maxAttendees}</span>
                             </div>
                             <div
                               className="row-progress-track"
@@ -321,7 +384,7 @@ export default function Dashboard() {
 
                         <button
                           className="row-delete-action"
-                          onClick={() => handleDelete(m.id)}
+                          onClick={() => handleDelete(meetupId)}
                           title="מחק מפגש"
                           aria-label={`מחק את המפגש ${m.title}`}
                         >
@@ -440,8 +503,8 @@ const CSS = `
   .hero-title span {
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #a855f7 100%);
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .hero-sub {
@@ -573,9 +636,13 @@ const CSS = `
     color: #fff;
     box-shadow: 0 6px 16px rgba(124, 58, 237, 0.2);
   }
-  .submit-action-btn:hover {
+  .submit-action-btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 10px 24px rgba(124, 58, 237, 0.3);
+  }
+  .submit-action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   /* Created Items Feed */
@@ -664,7 +731,6 @@ const CSS = `
   .inner-empty-state h3 { font-size: 16px; font-weight: 700; color: #1e1b4b; margin-bottom: 6px; }
   .inner-empty-state p { font-size: 13.5px; color: #6b7280; line-height: 1.5; }
 
-  /* Accessibility: visible focus + reduced motion */
   .form-control:focus-visible,
   .submit-action-btn:focus-visible,
   .row-delete-action:focus-visible {

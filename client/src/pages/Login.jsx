@@ -1,17 +1,25 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useMeetups } from "../context/MeetupContext";
+import { loginRequest } from "../api";
 
 /* ─────────────────────────────────────────────
-    Login.jsx  –  MeetUp App  (Premium glass · revamped)
+    Login.jsx  –  MeetUp App  (התחברות מול Backend אמיתי + JWT)
 ───────────────────────────────────────────── */
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useMeetups();
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors]     = useState({});
   const [success, setSuccess]   = useState(false);
   const [loading, setLoading]   = useState(false);
+
+  // היעד לחזרה אחרי התחברות (אם המשתמש הגיע דרך ProtectedRoute)
+  const redirectTo = location.state?.from?.pathname || "/dashboard";
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -30,25 +38,30 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
+    setErrors({});
 
-    const savedUser = JSON.parse(localStorage.getItem("registeredUser"));
+    try {
+      // קריאה אמיתית ל-Backend. מצופה להחזיר { user, token }.
+      const { user, token } = await loginRequest({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
 
-    if (savedUser && savedUser.email === formData.email && savedUser.password === formData.password) {
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("currentUser", JSON.stringify(savedUser));
+      // עדכון ה-Context + localStorage בפעולה אחת (מקור אמת יחיד).
+      // מכיוון שה-user מתעדכן סינכרונית, אין Race Condition מול ProtectedRoute.
+      login(user, token);
 
-      setLoading(false);
       setSuccess(true);
-
-      setTimeout(() => navigate("/dashboard"), 1500);
-    } else {
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setErrors({ global: err.message || "אימייל או סיסמה שגויים" });
+    } finally {
       setLoading(false);
-      setErrors({ global: "אימייל או סיסמה שגויים" });
     }
   }
 
@@ -75,7 +88,7 @@ export default function Login() {
           )}
 
           {/* Global or Form error */}
-          {(Object.keys(errors).length > 0 || errors.global) && !success && (
+          {(errors.global || Object.keys(errors).length > 0) && !success && (
             <div className="auth-toast error" role="alert" aria-live="assertive">
               {errors.global ? `⚠️ ${errors.global}` : "⚠️ אנא תקן את השגיאות המסומנות"}
             </div>
@@ -98,6 +111,7 @@ export default function Login() {
                 placeholder="your@email.com"
                 autoComplete="email"
                 aria-invalid={!!errors.email}
+                disabled={loading}
                 dir="ltr"
               />
               {errors.email && <span className="field-error">{errors.email}</span>}
@@ -119,6 +133,7 @@ export default function Login() {
                   placeholder="לפחות 6 תווים"
                   autoComplete="current-password"
                   aria-invalid={!!errors.password}
+                  disabled={loading}
                   dir="ltr"
                 />
                 <button

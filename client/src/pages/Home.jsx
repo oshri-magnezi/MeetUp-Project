@@ -24,6 +24,11 @@ function getCategoryColors(cat) {
   return CATEGORY_COLORS[cat] || CATEGORY_COLORS.default;
 }
 
+// מזהה אחיד למפגש (תומך גם ב-MongoDB _id וגם ב-id מקומי)
+function getMeetupId(m) {
+  return m._id || m.id;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -42,10 +47,11 @@ function formatTime(dateStr) {
 
 /* ── Meetup Card ─────────────────────────── */
 function MeetupCard({ meetup, onJoin, joined }) {
-  const isFull   = meetup.registered >= meetup.maxAttendees;
+  const registered = meetup.registered ?? 0;
+  const isFull   = registered >= meetup.maxAttendees;
   const disabled = joined || isFull;
   const colors   = getCategoryColors(meetup.category);
-  const pct      = Math.min(100, Math.round((meetup.registered / meetup.maxAttendees) * 100));
+  const pct      = Math.min(100, Math.round((registered / meetup.maxAttendees) * 100));
 
   return (
     <article className="card" dir="rtl">
@@ -87,7 +93,7 @@ function MeetupCard({ meetup, onJoin, joined }) {
       {/* Attendees bar */}
       <div className="attendees-wrap">
         <div className="attendees-label">
-          <span><strong>{meetup.registered}</strong> מתוך {meetup.maxAttendees} רשומים</span>
+          <span><strong>{registered}</strong> מתוך {meetup.maxAttendees} רשומים</span>
           {isFull && <span className="full-tag">מלא 🔒</span>}
         </div>
         <div
@@ -110,7 +116,7 @@ function MeetupCard({ meetup, onJoin, joined }) {
       {/* CTA */}
       <button
         className={`join-btn ${disabled ? (joined ? "joined" : "full") : ""}`}
-        onClick={() => !disabled && onJoin(meetup.id)}
+        onClick={() => !disabled && onJoin(getMeetupId(meetup))}
         disabled={disabled}
         aria-label={joined ? "כבר רשום" : isFull ? "המפגש מלא" : "אשר הגעה"}
       >
@@ -138,8 +144,8 @@ function EmptyState({ onNavigate, title, sub, icon, ctaText }) {
 
 /* ── Home Page ───────────────────────────── */
 export default function Home() {
-  const { meetups, joinMeetup } = useMeetups();
-  const navigate                = useNavigate();
+  const { meetups, loading, error, joinMeetup } = useMeetups();
+  const navigate                  = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
   const [joinedIds, setJoinedIds] = useState(new Set());
 
@@ -148,9 +154,19 @@ export default function Home() {
     return meetups.filter((m) => m.category === activeTab);
   }, [meetups, activeTab]);
 
-  function handleJoin(id) {
-    joinMeetup(id);
+  // הצטרפות אופטימית: מסמנים מיד, ומבטלים אם השרת מחזיר שגיאה
+  async function handleJoin(id) {
     setJoinedIds((prev) => new Set([...prev, id]));
+    try {
+      await joinMeetup(id);
+    } catch (err) {
+      setJoinedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      alert(err.message);
+    }
   }
 
   return (
@@ -187,7 +203,7 @@ export default function Home() {
           </nav>
 
           {/* Results count info */}
-          {meetups.length > 0 && (
+          {!loading && meetups.length > 0 && (
             <p className="results-info" aria-live="polite">
               מציג <strong>{filtered.length}</strong> מפגשים
               {activeTab !== "all" && (
@@ -197,7 +213,23 @@ export default function Home() {
           )}
 
           {/* Content Section */}
-          {meetups.length === 0 ? (
+          {loading ? (
+            <div className="empty-state" dir="rtl">
+              <div className="empty-icon-wrap">
+                <div className="empty-icon" aria-hidden="true">🔄</div>
+              </div>
+              <h2 className="empty-title">טוען מפגשים...</h2>
+              <p className="empty-sub">אנא המתן בזמן שאנו מושכים את המפגשים מהשרת.</p>
+            </div>
+          ) : error ? (
+            <EmptyState
+              title="לא הצלחנו לטעון את המפגשים"
+              sub={error}
+              icon="⚠️"
+              ctaText="↻ רענן את הדף"
+              onNavigate={() => window.location.reload()}
+            />
+          ) : meetups.length === 0 ? (
             <EmptyState
               title="אין מפגשים זמינים כרגע"
               sub="נראה שעדיין אין מפגשים מתוכננים במערכת. למה לא להיות הראשון שיוצר אחד?"
@@ -215,14 +247,17 @@ export default function Home() {
             />
           ) : (
             <section className="grid" aria-label="רשימת מפגשים">
-              {filtered.map((meetup) => (
-                <MeetupCard
-                  key={meetup.id}
-                  meetup={meetup}
-                  onJoin={handleJoin}
-                  joined={joinedIds.has(meetup.id)}
-                />
-              ))}
+              {filtered.map((meetup) => {
+                const id = getMeetupId(meetup);
+                return (
+                  <MeetupCard
+                    key={id}
+                    meetup={meetup}
+                    onJoin={handleJoin}
+                    joined={joinedIds.has(id)}
+                  />
+                );
+              })}
             </section>
           )}
         </main>
