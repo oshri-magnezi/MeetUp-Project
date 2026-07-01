@@ -4,13 +4,15 @@ import { connectDB } from "./config/db.js";
 
 /* ─────────────────────────────────────────────
    server.js — נקודת הכניסה
-   קודם מתחברים ל-DB, ורק אז מפעילים את השרת.
+   מפעילים את השרת מיד (פורט 5000 תמיד פתוח ל-Frontend),
+   ומתחברים ל-DB במקביל — כך שגם אם ה-DB איטי/לא זמין
+   השרת פועל וה-Frontend לא מקבל שגיאת "אין חיבור לשרת".
 ───────────────────────────────────────────── */
 
 const PORT = process.env.PORT || 5000;
 
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 השרת פועל על http://localhost:${PORT}`);
-  });
+app.listen(PORT, () => {
+  console.log(`🚀 השרת פועל על http://localhost:${PORT}`);
 });
+
+connectDB();
