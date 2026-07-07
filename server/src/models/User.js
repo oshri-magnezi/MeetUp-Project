@@ -28,6 +28,11 @@ const userSchema = new mongoose.Schema(
       minlength: [6, "הסיסמה חייבת להכיל לפחות 6 תווים"],
       select: false, // לא יוחזר כברירת מחדל בשאילתות
     },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
   },
   { timestamps: true }
 );

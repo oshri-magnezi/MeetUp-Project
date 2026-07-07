@@ -43,4 +43,9 @@ const meetupSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// אינדקסים לשיפור ביצועים בשאילתות הנפוצות:
+// createdBy — סינון "המפגשים שלי"; category+date — סינון וקטגוריה בדף הבית
+meetupSchema.index({ createdBy: 1 });
+meetupSchema.index({ category: 1, date: 1 });
+
 export default mongoose.model("Meetup", meetupSchema);

@@ -1,0 +1,349 @@
+{
+  "info": {
+    "name": "MeetUp API",
+    "description": "אוסף בקשות מלא ל-MeetUp Backend (Express + MongoDB + JWT).\n\n## שימוש\n1. ודא שהשרת רץ על http://localhost:5000\n2. הרץ **Auth → Register** או **Auth → Login** — הטוקן יישמר אוטומטית למשתנה `token`.\n3. שאר הבקשות המוגנות ישתמשו בטוקן הזה אוטומטית (Bearer).\n4. **Create Meetup** שומר את מזהה המפגש למשתנה `meetupId`, כך ש-Update/Delete/Join עובדים ישר עליו.\n\nמשתני Collection: `baseUrl`, `token`, `meetupId`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "meetupId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns user + token', () => {",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  pm.expect(body).to.have.property('user');",
+                  "});",
+                  "if (body.token) {",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "  console.log('token saved from register');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Israel Israeli\",\n  \"email\": \"israel@example.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "הרשמת משתמש חדש. הסיסמה מוצפנת ב-bcrypt בצד השרת. מחזיר { user, token }."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns token', () => pm.expect(body).to.have.property('token'));",
+                  "if (body.token) {",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "  console.log('token saved from login');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"israel@example.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "התחברות. משווה סיסמה עם bcrypt.compare ומנפיק JWT. מחזיר { user, token }."
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "// הטוקן נכנס ל-blacklist בצד השרת ולא יתקבל שוב"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "מוגן. מוסיף את הטוקן הנוכחי ל-blacklist בצד השרת — ביטול Session אמיתי."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "מחדש Access Token באמצעות ה-Refresh Token שנשמר ב-httpOnly cookie (נשלח אוטומטית ע\"י Postman)."
+          }
+        },
+        {
+          "name": "Get All Users (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users"]
+            },
+            "description": "לאדמין בלבד. מחזיר את כל המשתמשים. משתמש רגיל יקבל 403."
+          }
+        },
+        {
+          "name": "Delete User (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":userId"],
+              "variable": [{ "key": "userId", "value": "" }]
+            },
+            "description": "לאדמין בלבד. מוחק משתמש וגם את כל המפגשים שיצר. אי אפשר למחוק את עצמך (400)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meetups",
+      "item": [
+        {
+          "name": "Get All Meetups",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meetups",
+              "host": ["{{baseUrl}}"],
+              "path": ["meetups"]
+            },
+            "description": "ציבורי. מחזיר את כל המפגשים ממוינים לפי תאריך, עם פרטי היוצר (name, email)."
+          }
+        },
+        {
+          "name": "Create Meetup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body._id) {",
+                  "  pm.collectionVariables.set('meetupId', body._id);",
+                  "  console.log('meetupId saved:', body._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"מרתון תכנות\",\n  \"description\": \"ערב קוד משותף לכל הרמות\",\n  \"date\": \"2026-08-15T18:00\",\n  \"location\": \"תל אביב\",\n  \"category\": \"study\",\n  \"maxAttendees\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/meetups",
+              "host": ["{{baseUrl}}"],
+              "path": ["meetups"]
+            },
+            "description": "מוגן (JWT). יוצר מפגש חדש שהבעלים שלו הוא המשתמש המחובר. שומר את ה-_id למשתנה meetupId."
+          }
+        },
+        {
+          "name": "Update Meetup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"מרתון תכנות — עודכן\",\n  \"maxAttendees\": 30\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/meetups/{{meetupId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["meetups", "{{meetupId}}"]
+            },
+            "description": "מוגן (JWT + בעלים בלבד). מעדכן שדות תוכן של מפגש קיים."
+          }
+        },
+        {
+          "name": "Join Meetup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 400', () => pm.expect([200, 400]).to.include(pm.response.code));",
+                  "// 400 תקין אם כבר נרשמת או שהמפגש מלא"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/meetups/{{meetupId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["meetups", "{{meetupId}}", "join"]
+            },
+            "description": "מוגן (JWT). מוסיף את המשתמש המחובר לרשימת הנרשמים. 400 אם כבר נרשם או שהמפגש מלא."
+          }
+        },
+        {
+          "name": "Leave Meetup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 400', () => pm.expect([200, 400]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/meetups/{{meetupId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["meetups", "{{meetupId}}", "join"]
+            },
+            "description": "מוגן (JWT). ביטול רישום — מסיר את המשתמש מרשימת הנרשמים. 400 אם אינו רשום."
+          }
+        },
+        {
+          "name": "Delete Meetup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/meetups/{{meetupId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["meetups", "{{meetupId}}"]
+            },
+            "description": "מוגן (JWT + בעלים בלבד). מוחק את המפגש."
+          }
+        }
+      ]
+    }
+  ]
+}

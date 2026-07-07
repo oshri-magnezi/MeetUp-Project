@@ -44,6 +44,44 @@ export async function createMeetup(req, res, next) {
   }
 }
 
+// PUT /api/meetups/:id — מוגן (רק הבעלים יכול לעדכן)
+export async function updateMeetup(req, res, next) {
+  try {
+    const meetup = await Meetup.findById(req.params.id);
+
+    if (!meetup) {
+      return res.status(404).json({ message: "המפגש לא נמצא" });
+    }
+    // הבעלים או מנהל (admin) בלבד
+    const isOwner = meetup.createdBy.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin") {
+      return res.status(403).json({ message: "אין לך הרשאה לעדכן מפגש זה" });
+    }
+
+    // מעדכנים רק שדות תוכן — לא בעלות ולא נתוני נרשמים
+    const { title, description, date, location, category, maxAttendees } = req.body;
+    if (title !== undefined)        meetup.title = title;
+    if (description !== undefined)  meetup.description = description;
+    if (date !== undefined)         meetup.date = date;
+    if (location !== undefined)     meetup.location = location;
+    if (category !== undefined)     meetup.category = category;
+    if (maxAttendees !== undefined) meetup.maxAttendees = maxAttendees;
+
+    // לא מרשים לצמצם את מגבלת המקומות מתחת לכמות הנרשמים הקיימת
+    if (meetup.maxAttendees < meetup.registered) {
+      return res.status(400).json({
+        message: `לא ניתן להגביל ל-${meetup.maxAttendees} מקומות — כבר רשומים ${meetup.registered}`,
+      });
+    }
+
+    await meetup.save(); // מפעיל את ולידציות ה-Schema
+    await meetup.populate("createdBy", "name email");
+    res.json(meetup);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // DELETE /api/meetups/:id — מוגן (רק הבעלים יכול למחוק)
 export async function deleteMeetup(req, res, next) {
   try {
@@ -52,7 +90,9 @@ export async function deleteMeetup(req, res, next) {
     if (!meetup) {
       return res.status(404).json({ message: "המפגש לא נמצא" });
     }
-    if (meetup.createdBy.toString() !== req.user._id.toString()) {
+    // הבעלים או מנהל (admin) בלבד
+    const isOwner = meetup.createdBy.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin") {
       return res.status(403).json({ message: "אין לך הרשאה למחוק מפגש זה" });
     }
 
@@ -83,6 +123,32 @@ export async function joinMeetup(req, res, next) {
     }
 
     meetup.attendees.push(req.user._id);
+    meetup.registered = meetup.attendees.length;
+    await meetup.save();
+
+    await meetup.populate("createdBy", "name email");
+    res.json(meetup);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/meetups/:id/join — מוגן. ביטול רישום למפגש.
+export async function leaveMeetup(req, res, next) {
+  try {
+    const meetup = await Meetup.findById(req.params.id);
+
+    if (!meetup) {
+      return res.status(404).json({ message: "המפגש לא נמצא" });
+    }
+
+    const uid = req.user._id.toString();
+    const isRegistered = meetup.attendees.some((a) => a.toString() === uid);
+    if (!isRegistered) {
+      return res.status(400).json({ message: "אינך רשום למפגש זה" });
+    }
+
+    meetup.attendees = meetup.attendees.filter((a) => a.toString() !== uid);
     meetup.registered = meetup.attendees.length;
     await meetup.save();
 

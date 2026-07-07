@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   useState,
   useContext,
@@ -9,6 +9,8 @@ import {
   createMeetupRequest,
   deleteMeetupRequest,
   joinMeetupRequest,
+  leaveMeetupRequest,
+  logoutRequest,
 } from "../api";
 import { LS_TOKEN, LS_USER } from "../api/client";
 
@@ -51,7 +53,14 @@ export const MeetupProvider = ({ children }) => {
     if (userToken) localStorage.setItem(LS_TOKEN, userToken);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // ביטול ה-Session בשרת קודם — בזמן שהטוקן עדיין ב-localStorage
+    // וה-interceptor מצמיד אותו. גם אם הקריאה נכשלת, ממשיכים לנקות מקומית.
+    try {
+      await logoutRequest();
+    } catch {
+      /* התנתקות מקומית מובטחת גם אם השרת לא זמין */
+    }
     setUser(null);
     setToken(null);
     localStorage.removeItem(LS_USER);
@@ -83,29 +92,50 @@ export const MeetupProvider = ({ children }) => {
     setMeetups((prev) => prev.filter((m) => (m._id || m.id) !== id));
   }, []);
 
-  // הצטרפות עם עדכון אופטימי + Rollback אם השרת נכשל
+  // מזהה המשתמש הנוכחי (למעקב אחרי מי רשום לאיזה מפגש)
+  const uid = user?._id || user?.id;
+
+  // הצטרפות עם עדכון אופטימי (attendees + registered) + Rollback אם השרת נכשל.
+  // בסיום מוחלף המפגש בתשובת השרת — מקור אמת יחיד.
   const joinMeetup = useCallback(async (id) => {
     let snapshot;
     setMeetups((prev) => {
       snapshot = prev;
-      return prev.map((m) =>
-        (m._id || m.id) === id && (m.registered ?? 0) < m.maxAttendees
-          ? { ...m, registered: (m.registered ?? 0) + 1 }
-          : m
-      );
+      return prev.map((m) => {
+        if ((m._id || m.id) !== id) return m;
+        const attendees = m.attendees || [];
+        if (attendees.some((a) => String(a) === String(uid))) return m;
+        return { ...m, attendees: [...attendees, uid], registered: (m.registered ?? 0) + 1 };
+      });
     });
     try {
-      await joinMeetupRequest(id);
+      const updated = await joinMeetupRequest(id);
+      setMeetups((prev) => prev.map((m) => ((m._id || m.id) === id ? updated : m)));
     } catch (err) {
       if (snapshot) setMeetups(snapshot); // החזרת המצב הקודם
       throw err;
     }
-  }, []);
+  }, [uid]);
 
-  // נשמר לתאימות לאחור (הוספה ישירה לסטייט ללא קריאת רשת)
-  const addMeetup = useCallback((newMeetup) => {
-    setMeetups((prev) => [newMeetup, ...prev]);
-  }, []);
+  // ביטול רישום — אותו דפוס אופטימי, בכיוון ההפוך.
+  const leaveMeetup = useCallback(async (id) => {
+    let snapshot;
+    setMeetups((prev) => {
+      snapshot = prev;
+      return prev.map((m) => {
+        if ((m._id || m.id) !== id) return m;
+        const attendees = (m.attendees || []).filter((a) => String(a) !== String(uid));
+        return { ...m, attendees, registered: Math.max(0, (m.registered ?? 1) - 1) };
+      });
+    });
+    try {
+      const updated = await leaveMeetupRequest(id);
+      setMeetups((prev) => prev.map((m) => ((m._id || m.id) === id ? updated : m)));
+    } catch (err) {
+      if (snapshot) setMeetups(snapshot);
+      throw err;
+    }
+  }, [uid]);
 
   return (
     <MeetupContext.Provider
@@ -123,7 +153,7 @@ export const MeetupProvider = ({ children }) => {
         createMeetup,
         deleteMeetup,
         joinMeetup,
-        addMeetup,
+        leaveMeetup,
       }}
     >
       {children}
@@ -131,6 +161,7 @@ export const MeetupProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useMeetups = () => {
   const ctx = useContext(MeetupContext);
   if (!ctx) {

@@ -20,6 +20,7 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 15000,
+  withCredentials: true, // שליחת/קבלת ה-Refresh Token cookie (httpOnly)
 });
 
 /* ── Request Interceptor: מצמיד את ה-JWT לכל בקשה יוצאת ──
@@ -36,13 +37,38 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* ── Response Interceptor: נרמול שגיאות להודעה ידידותית אחת ── */
+/* ── Response Interceptor: חידוש אוטומטי של הטוקן + נרמול שגיאות ──
+   על 401 (Access Token פג) מנסים פעם אחת לחדש דרך /auth/refresh
+   (שקורא ל-Refresh Token מה-cookie), ואז חוזרים על הבקשה המקורית
+   בשקיפות מלאה. אם החידוש נכשל — מנקים את ה-Session.            */
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const original = error.config;
     const status = error.response?.status;
+    const isAuthCall = original?.url?.includes("/auth/");
 
-    // טוקן לא תקין / פג תוקף — מנקים את ה-Session המקומי
+    // ניסיון חידוש חד-פעמי — לא על נתיבי ה-auth עצמם, ולא אם כבר ניסינו
+    if (status === 401 && original && !original._retry && !isAuthCall) {
+      original._retry = true;
+      try {
+        const { data } = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+        if (data?.token) {
+          localStorage.setItem(LS_TOKEN, data.token);
+          if (data.user) localStorage.setItem(LS_USER, JSON.stringify(data.user));
+          original.headers.Authorization = `Bearer ${data.token}`;
+          return apiClient(original); // חזרה על הבקשה עם הטוקן החדש
+        }
+      } catch {
+        /* חידוש נכשל — ממשיכים לניקוי ה-Session למטה */
+      }
+    }
+
+    // טוקן לא תקין / פג תוקף וללא חידוש אפשרי — מנקים את ה-Session המקומי
     if (status === 401) {
       localStorage.removeItem(LS_TOKEN);
       localStorage.removeItem(LS_USER);

@@ -1,3 +1,5 @@
+import { logger } from "../config/logger.js";
+
 /* ─────────────────────────────────────────────
    errorMiddleware.js — טיפול מרוכז בשגיאות
    פורמט תגובה אחיד: { message }  (בדיוק מה שה-Frontend קורא)
@@ -10,7 +12,7 @@ export function notFound(req, res, next) {
 
 // Handler מרכזי לכל השגיאות באפליקציה
 export function errorHandler(err, req, res, next) {
-  console.error("❌ שגיאת שרת:", err.message);
+  logger.error(`${err.message} — ${req.method} ${req.originalUrl}`, { stack: err.stack });
 
   let status = err.statusCode || 500;
   let message = err.message || "שגיאת שרת פנימית";

@@ -1,108 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap');
+
+/* ═════════════════════════════════════════════
+   MeetUp — מערכת עיצוב "קהילה עירונית"
+   ירוק אורן על נייר חם · IBM Plex Sans Hebrew
+   אפס צללים · פינות 4–8px · רשת 8px
+═════════════════════════════════════════════ */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* צבע המותג — ירוק אורן עמוק */
+  --brand: #17594a;
+  --brand-hover: #0f4438;
+  --brand-soft: #e8f1ed;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* משטחים — נייר חם */
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --surface-2: #f3f1ec;
+  --border: #e5e1d8;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  /* טקסט — דיו */
+  --ink: #20241f;
+  --ink-2: #5a6157;
+  --ink-3: #98988c;
+
+  /* צבעי מערכת סמנטיים */
+  --ok: #2e7d43;
+  --ok-soft: #eaf3ec;
+  --warn: #a85a00;
+  --warn-soft: #f9f1e4;
+  --danger: #b3372e;
+  --danger-soft: #f8ecea;
+  --info: #31708f;
+  --info-soft: #eaf1f5;
+
+  /* צורה */
+  --radius-sm: 4px;
+  --radius: 8px;
+
+  /* טיפוגרפיה */
+  --font-body: 'IBM Plex Sans Hebrew', 'Segoe UI', system-ui, sans-serif;
+  --font-heading: 'IBM Plex Sans Hebrew', 'Segoe UI', system-ui, sans-serif;
+
   color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+    --brand: #4ecca3;
+    --brand-hover: #6adcb7;
+    --brand-soft: rgba(78, 204, 163, 0.13);
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --bg: #131413;
+    --surface: #1c1e1c;
+    --surface-2: #242724;
+    --border: #33362f;
+
+    --ink: #eceae4;
+    --ink-2: #a8ada3;
+    --ink-3: #6f746a;
+
+    --ok: #58b878;
+    --ok-soft: rgba(88, 184, 120, 0.13);
+    --warn: #d99a3d;
+    --warn-soft: rgba(217, 154, 61, 0.13);
+    --danger: #dd7268;
+    --danger-soft: rgba(221, 114, 104, 0.13);
+    --info: #6fa8c9;
+    --info-soft: rgba(111, 168, 201, 0.13);
   }
+}
+
+/* ── בסיס ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   margin: 0;
   direction: rtl; /* יישור מימין לשמאל לכל האפליקציה */
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+  zoom: 0.9; /* תצוגה מוקטנת אחידה — כמו Ctrl+גלגול ל-90% */
 }
+
 #root {
   width: 100%;
   margin: 0;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-  /* הסרנו את ה-border-inline ואת ה-width הקבוע */
-}
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+/* כותרות — IBM Plex Sans Hebrew, משקל כבד */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  color: var(--ink);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+h1 { font-size: 34px; }
+h2 { font-size: 22px; font-weight: 500; }
+h3 { font-size: 19px; font-weight: 500; }
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+a { color: var(--brand); }
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }
