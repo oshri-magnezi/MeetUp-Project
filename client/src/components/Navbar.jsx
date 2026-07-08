@@ -17,8 +17,13 @@ function buildNavLinks(user) {
 
   if (user) {
     links.push({ to: "/profile", label: "הפרופיל שלי", icon: "user" });
+
     if (user.role === "admin") {
-      links.push({ to: "/admin", label: "ניהול משתמשים", icon: "shield" });
+      links.push({
+        to: "/admin",
+        label: "ניהול משתמשים",
+        icon: "shield",
+      });
     }
   } else {
     links.push(
@@ -26,6 +31,7 @@ function buildNavLinks(user) {
       { to: "/register", label: "הרשמה", icon: "register" }
     );
   }
+
   return links;
 }
 
@@ -39,12 +45,14 @@ export default function Navbar() {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   // נעילת גלילת הרקע כשהתפריט הנייד פתוח
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
+
     return () => {
       document.body.style.overflow = "";
     };
@@ -61,40 +69,52 @@ export default function Navbar() {
   return (
     <header className={`navbar ${scrolled ? "is-scrolled" : ""}`} dir="rtl">
       <div className="navbar-inner">
-        {/* לוגו — נשאר כמות שהוא (יוחלף ע"י המעצב) */}
-        <NavLink to="/" className="brand" onClick={closeMenu} aria-label="MeetUp — דף הבית">
-          <span className="brand-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="9" cy="9" r="5" />
-              <circle cx="16.5" cy="15.5" r="3.5" opacity="0.55" />
-            </svg>
-          </span>
-          <span className="brand-text">Meet<b>Up</b></span>
+        {/* Logo */}
+        <NavLink
+          to="/"
+          className="brand"
+          onClick={closeMenu}
+          aria-label="MeetUp — דף הבית"
+        >
+          <img
+            src="/logo.png"
+            alt="MeetUp"
+            className="brand-logo"
+          />
         </NavLink>
 
-        {/* קישורי דסקטופ */}
+        {/* Desktop Navigation */}
         <nav className="nav-links" aria-label="ניווט ראשי">
           {navLinks.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               end={link.end}
-              className={({ isActive }) => `nav-link ${isActive ? "is-active" : ""}`}
+              className={({ isActive }) =>
+                `nav-link ${isActive ? "is-active" : ""}`
+              }
             >
-              <span className="nav-link-icon"><Icon name={link.icon} /></span>
+              <span className="nav-link-icon">
+                <Icon name={link.icon} />
+              </span>
               <span>{link.label}</span>
             </NavLink>
           ))}
 
           {user && (
-            <button onClick={handleLogout} className="nav-link logout-btn">
-              <span className="nav-link-icon"><Icon name="logout" /></span>
+            <button
+              onClick={handleLogout}
+              className="nav-link logout-btn"
+            >
+              <span className="nav-link-icon">
+                <Icon name="logout" />
+              </span>
               <span>התנתקות</span>
             </button>
           )}
         </nav>
 
-        {/* כפתור תפריט נייד */}
+        {/* Mobile Menu Button */}
         <button
           type="button"
           className={`burger ${menuOpen ? "is-open" : ""}`}
@@ -109,8 +129,12 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* פאנל נייד */}
-      <div id="mobile-menu" className={`mobile-menu ${menuOpen ? "is-open" : ""}`} hidden={!menuOpen}>
+      {/* Mobile Menu */}
+      <div
+        id="mobile-menu"
+        className={`mobile-menu ${menuOpen ? "is-open" : ""}`}
+        hidden={!menuOpen}
+      >
         <nav className="mobile-links" aria-label="ניווט נייד">
           {navLinks.map((link) => (
             <NavLink
@@ -118,23 +142,32 @@ export default function Navbar() {
               to={link.to}
               end={link.end}
               onClick={closeMenu}
-              className={({ isActive }) => `mobile-link ${isActive ? "is-active" : ""}`}
+              className={({ isActive }) =>
+                `mobile-link ${isActive ? "is-active" : ""}`
+              }
             >
-              <span className="nav-link-icon"><Icon name={link.icon} /></span>
+              <span className="nav-link-icon">
+                <Icon name={link.icon} />
+              </span>
               <span>{link.label}</span>
             </NavLink>
           ))}
 
           {user && (
-            <button onClick={handleLogout} className="mobile-link logout-btn">
-              <span className="nav-link-icon"><Icon name="logout" /></span>
+            <button
+              onClick={handleLogout}
+              className="mobile-link logout-btn"
+            >
+              <span className="nav-link-icon">
+                <Icon name="logout" />
+              </span>
               <span>התנתקות</span>
             </button>
           )}
         </nav>
       </div>
 
-      {/* רקע כהה מאחורי התפריט הנייד */}
+      {/* Dark backdrop behind mobile menu */}
       <button
         className={`backdrop ${menuOpen ? "is-open" : ""}`}
         onClick={closeMenu}

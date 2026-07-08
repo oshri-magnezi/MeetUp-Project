@@ -79,13 +79,12 @@ export default function Login() {
     <div className="auth-page" dir="rtl">
       <div className="auth-card">
 
-        {/* לוגו — נשאר כמות שהוא */}
+        {/* לוגו */}
         <div className="auth-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="9" cy="9" r="5" />
-            <circle cx="16.5" cy="15.5" r="3.5" opacity="0.55" />
-          </svg>
-          <span className="logo-text">Meet<b>Up</b></span>
+          <picture>
+            <source srcSet="/logo.png" media="(prefers-color-scheme: dark)" />
+            <img src="/logo-light.png" alt="MeetUp" className="auth-logo-img" />
+          </picture>
         </div>
 
         <h1 className="auth-title">התחברות ל-MeetUp</h1>

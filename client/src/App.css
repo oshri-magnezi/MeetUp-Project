@@ -33,23 +33,16 @@
 
 /* לוגו — נשאר במבנהו, יורש את צבע המותג */
 .brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   text-decoration: none;
-  color: var(--brand);
-  padding: 4px 0;
+  flex-shrink: 0;
 }
-.brand-icon { display: inline-flex; }
-.brand-text {
-  font-family: var(--font-heading);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.brand-text b {
-  color: var(--brand);
-  font-weight: 700;
+
+.brand-logo {
+  height: 100px;
+  width: auto;
 }
 
 .nav-links {
@@ -260,6 +253,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 44px; /* מינימום יעד-מגע (Apple HIG / Material) */
   font-size: 15px;
   font-weight: 600;
   padding: 10px 20px;
@@ -289,6 +283,15 @@
 }
 .btn-ghost:hover {
   border-color: var(--ink-2);
+}
+
+/* וריאנט שקט לפעולות "מסוכנות" (התנתקות, מחיקה) */
+.btn-danger {
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
 }
 
 /* ─────────────────────────────────────────────
@@ -698,17 +701,13 @@ select.field-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   margin-bottom: 20px;
-  color: var(--brand);
 }
-.auth-logo .logo-text {
-  font-family: var(--font-heading);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--ink);
+.auth-logo-img {
+  height: 52px;
+  width: auto;
+  display: block;
 }
-.auth-logo .logo-text b { color: var(--brand); font-weight: 700; }
 
 .auth-title {
   font-size: 26px;
@@ -773,22 +772,23 @@ select.field-input {
 ───────────────────────────────────────────── */
 .profile-card {
   max-width: 520px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  padding: 0; /* האזורים הפנימיים מנהלים את הריווח, מופרדים בקווים */
 }
+
+/* זהות */
 .profile-head {
   display: flex;
   align-items: center;
   gap: 16px;
+  padding: 24px;
 }
 .profile-avatar {
   width: 56px;
   height: 56px;
   flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--brand-soft);
-  color: var(--brand);
+  border-radius: var(--radius);
+  background: var(--brand); /* הבלוק הצבעוני היחיד בדף — החתימה */
+  color: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -796,28 +796,55 @@ select.field-input {
   font-size: 24px;
   font-weight: 700;
 }
+.profile-id { min-width: 0; } /* מאפשר לאימייל ארוך להישבר במקום לגלוש */
 .profile-name {
-  font-family: var(--font-body);
+  font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 700;
 }
-.profile-email { font-size: 14px; color: var(--ink-2); }
-.profile-stat {
+.profile-email {
+  font-size: 14px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* סיכום פעילות — שלושה אריחי מספר */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+}
+.stat-tile {
+  padding: 16px 12px;
+  text-align: center;
+}
+.stat-tile + .stat-tile { border-inline-start: 1px solid var(--border); }
+.stat-value {
+  min-height: 30px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  color: var(--ink-2);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: 14px 16px;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
-.profile-stat svg { color: var(--ink-3); }
-.profile-stat b { color: var(--ink); font-weight: 700; }
+.stat-value.stat-date { font-size: 15px; font-weight: 600; }
+.stat-label {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+
+/* פעולות */
 .profile-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding: 16px 24px 20px;
 }
 
 /* תג תפקיד (פרופיל + ניהול) */
