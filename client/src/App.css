@@ -31,13 +31,9 @@
   gap: 16px;
 }
 
-/* לוגו — נשאר במבנהו, יורש את צבע המותג */
+
 .brand {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  flex-shrink: 0;
 }
 
 .brand-logo {

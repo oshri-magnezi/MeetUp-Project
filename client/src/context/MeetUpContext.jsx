@@ -13,6 +13,7 @@ import {
   logoutRequest,
 } from "../api";
 import { LS_TOKEN, LS_USER } from "../api/client";
+import { getMeetupId } from "../utils/meetupUtils";
 
 /* ─────────────────────────────────────────────
    MeetupContext.jsx — Store גלובלי + Auth מרכזי
@@ -89,7 +90,7 @@ export const MeetupProvider = ({ children }) => {
 
   const deleteMeetup = useCallback(async (id) => {
     await deleteMeetupRequest(id);
-    setMeetups((prev) => prev.filter((m) => (m._id || m.id) !== id));
+    setMeetups((prev) => prev.filter((m) => getMeetupId(m) !== id));
   }, []);
 
   // מזהה המשתמש הנוכחי (למעקב אחרי מי רשום לאיזה מפגש)
@@ -102,7 +103,7 @@ export const MeetupProvider = ({ children }) => {
     setMeetups((prev) => {
       snapshot = prev;
       return prev.map((m) => {
-        if ((m._id || m.id) !== id) return m;
+        if (getMeetupId(m) !== id) return m;
         const attendees = m.attendees || [];
         if (attendees.some((a) => String(a) === String(uid))) return m;
         return { ...m, attendees: [...attendees, uid], registered: (m.registered ?? 0) + 1 };
@@ -110,7 +111,7 @@ export const MeetupProvider = ({ children }) => {
     });
     try {
       const updated = await joinMeetupRequest(id);
-      setMeetups((prev) => prev.map((m) => ((m._id || m.id) === id ? updated : m)));
+      setMeetups((prev) => prev.map((m) => (getMeetupId(m) === id ? updated : m)));
     } catch (err) {
       if (snapshot) setMeetups(snapshot); // החזרת המצב הקודם
       throw err;
@@ -123,14 +124,14 @@ export const MeetupProvider = ({ children }) => {
     setMeetups((prev) => {
       snapshot = prev;
       return prev.map((m) => {
-        if ((m._id || m.id) !== id) return m;
+        if (getMeetupId(m) !== id) return m;
         const attendees = (m.attendees || []).filter((a) => String(a) !== String(uid));
         return { ...m, attendees, registered: Math.max(0, (m.registered ?? 1) - 1) };
       });
     });
     try {
       const updated = await leaveMeetupRequest(id);
-      setMeetups((prev) => prev.map((m) => ((m._id || m.id) === id ? updated : m)));
+      setMeetups((prev) => prev.map((m) => (getMeetupId(m) === id ? updated : m)));
     } catch (err) {
       if (snapshot) setMeetups(snapshot);
       throw err;

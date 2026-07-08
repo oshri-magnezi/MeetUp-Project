@@ -1,16 +1,104 @@
-# React + Vite
+# MeetUp — אפליקציית מפגשים קהילתיים 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+אפליקציית Full Stack לניהול והצטרפות למפגשים קהילתיים: ספורט, פנאי ולימודים.
+משתמשים יכולים להירשם, להתחבר, לפרסם מפגשים חדשים, להצטרף למפגשים קיימים ולנהל את המפגשים שיצרו.
 
-Currently, two official plugins are available:
+## טכנולוגיות
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| שכבה | טכנולוגיות |
+| --- | --- |
+| **Frontend** | React 19, Vite, React Router 7, Context API, Axios |
+| **Backend** | Node.js, Express, JWT, bcryptjs |
+| **Database** | MongoDB + Mongoose |
+| **Styling** | CSS (Design Tokens, RTL, Light/Dark mode) |
 
-## React Compiler
+## ארכיטקטורת פרויקט
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+MeetUp/
+├── client/
+│   └── src/
+│       ├── api/          # הגדרות Axios, Interceptors וטיפול בשגיאות תקשורת
+│       ├── components/   # רכיבי UI משותפים (Reusable Components)
+│       ├── context/      # ניהול State גלובלי
+│       └── pages/        # רכיבי מסכים מרכזיים
+└── server/
+    └── src/
+        ├── config/       # הגדרות סביבה ומסדי נתונים
+        ├── controllers/  # לוגיקה עסקית
+        ├── middlewares/  # אימות, הרשאות וטיפול בשגיאות
+        ├── models/       # סכמות נתונים (Mongoose)
+        └── routes/       # ניתוב בקשות ה-API
 
-## Expanding the ESLint configuration
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## התקנה והרצה מקומית
+
+### 1. התקנת תלויות
+
+יש לוודא שמותקן Node.js (גרסה 20+) ו-MongoDB.
+
+```bash
+git clone https://github.com/oshri-magnezi/MeetUp-Project.git
+cd MeetUp-Project
+npm install --prefix server
+npm install --prefix client
+
+```
+
+### 2. משתני סביבה
+
+יש ליצור קובץ `server/.env` עם הערכים הבאים:
+
+| משתנה | תיאור |
+| --- | --- |
+| `PORT` | פורט השרת (ברירת מחדל: 5000) |
+| `MONGO_URI` | מחרוזת החיבור ל-MongoDB |
+| `JWT_SECRET` | מפתח לחתימת Access Token |
+| `JWT_EXPIRES` | תוקף ה-Access Token (למשל: `30m`) |
+| `JWT_REFRESH_SECRET` | מפתח ל-Refresh Token |
+| `JWT_REFRESH_EXPIRES` | תוקף ה-Refresh Token (למשל: `7d`) |
+| `CLIENT_URL` | כתובת ה-Frontend לטובת CORS |
+
+### 3. הפעלה
+
+```bash
+# הרצת השרת והלקוח במקביל (משורש הפרויקט)
+npm run dev --prefix server & npm run dev --prefix client
+
+```
+
+ניתן לאכלס את מסד הנתונים בנתוני דמו על ידי הרצת `npm run seed --prefix server`.
+
+## API Endpoints
+
+נתיב בסיס: `/api`
+
+### אותנטיקציה (`/auth`)
+
+| Method | Endpoint | תיאור | הרשאה |
+| --- | --- | --- | --- |
+| `POST` | `/register` | רישום משתמש חדש | ציבורי |
+| `POST` | `/login` | התחברות וקבלת Tokens | ציבורי |
+| `POST` | `/refresh` | חידוש Access Token (דרך Cookie) | Cookie |
+| `POST` | `/logout` | התנתקות ופסילת טוקנים | JWT |
+
+### מפגשים (`/meetups`)
+
+| Method | Endpoint | תיאור | הרשאה |
+| --- | --- | --- | --- |
+| `GET` | `/` | שליפת כל המפגשים | ציבורי |
+| `POST` | `/` | יצירת מפגש חדש | JWT |
+| `PUT` | `/:id` | עדכון מפגש קיים | JWT (בעלים/Admin) |
+| `DELETE` | `/:id` | מחיקת מפגש | JWT (בעלים/Admin) |
+| `POST` | `/:id/join` | הצטרפות למפגש | JWT |
+
+## אבטחה וביצועים
+
+* **הצפנת נתונים:** שימוש ב-bcrypt (10 rounds) לסיסמאות, לעולם לא נחשפות ללקוח.
+* **ניהול תצורה (JWT):** מנגנון דו-שכבתי. Access Token קצר-מועד ב-Headers, ו-Refresh Token ארוך-מועד ב-HTTP-Only Cookie למניעת התקפות XSS.
+* **בקרת גישה (RBAC):** הפרדת הרשאות מבוססת תפקידים (`User` / `Admin`) דרך Middlewares ייעודיים.
+* **הגנה מובנית:** יישום Rate Limiting להגנה מפני Brute Force, והגדרות CORS קפדניות לסביבת הלקוח בלבד.
+
+---
+
+**פותח על ידי Oshri Magnezi**

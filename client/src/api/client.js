@@ -23,6 +23,15 @@ const apiClient = axios.create({
   withCredentials: true, // שליחת/קבלת ה-Refresh Token cookie (httpOnly)
 });
 
+// בונה הודעת שגיאה אחת וברורה בעברית מתוך תשובת השרת או מצב הרשת
+function toFriendlyMessage(error) {
+  if (error.response?.data?.message) return error.response.data.message;
+  if (error.response?.data?.error) return error.response.data.error;
+  if (error.code === "ECONNABORTED") return "הבקשה ארכה זמן רב מדי. נסה שוב.";
+  if (!error.response) return "לא ניתן להתחבר לשרת. ודא שה-Backend פועל על פורט 5000.";
+  return "אירעה שגיאה בלתי צפויה. נסה שוב מאוחר יותר.";
+}
+
 /* ── Request Interceptor: מצמיד את ה-JWT לכל בקשה יוצאת ──
    הקריאה נעשית מ-localStorage בכל בקשה, כך שגם אם הטוקן התעדכן
    הרגע (Login) — הוא ייתפס מיד וסינכרונית.                    */
@@ -74,18 +83,8 @@ apiClient.interceptors.response.use(
       localStorage.removeItem(LS_USER);
     }
 
-    const friendlyMessage =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      (error.code === "ECONNABORTED"
-        ? "הבקשה ארכה זמן רב מדי. נסה שוב."
-        : null) ||
-      (!error.response
-        ? "לא ניתן להתחבר לשרת. ודא שה-Backend פועל על פורט 5000."
-        : "אירעה שגיאה בלתי צפויה. נסה שוב מאוחר יותר.");
-
     // מחזירים Error רגיל עם הודעה נקייה — קל לתפיסה ב-catch בכל קומפוננטה
-    return Promise.reject(new Error(friendlyMessage));
+    return Promise.reject(new Error(toFriendlyMessage(error)));
   }
 );
 
